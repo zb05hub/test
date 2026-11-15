@@ -13,11 +13,13 @@ GAMES = {}
 LOCK = Lock()
 LIMIT = 40*60
 
+# 打开数据库连接并管理事务。
 @contextmanager
 def db():
     with closing(sqlite3.connect(DB)) as c, c:
         yield c
 
+# 创建账号表和会话表。
 def init():
     with db() as c:
         c.executescript("""
@@ -26,9 +28,11 @@ def init():
         CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY, uid INTEGER NOT NULL, expires INTEGER NOT NULL);
         """)
 
+# 用独立盐值计算密码散列。
 def digest(password,salt):
     return hashlib.scrypt(password.encode(),salt=bytes.fromhex(salt),n=16384,r=8,p=1).hex()
 
+# 校验并保存新账号。
 def account(c,n,p,admin=False):
     if not 2<=len(n)<=24 or not 8<=len(p)<=128: raise ValueError('昵称须为 2–24 字，密码须为 8–128 字')
     salt=secrets.token_hex(16)
@@ -36,6 +40,7 @@ def account(c,n,p,admin=False):
                      (n,salt,digest(p,salt),int(admin))).lastrowid
 
 class Match:
+    # 初始化对局状态或静态文件目录。
     def __init__(self,uid,ai):
         self.uid,self.ai=uid,ai
         self.s=game.initial()
@@ -46,6 +51,7 @@ class Match:
         self.reason=''
         self.legal=game.moves(self.s)
         self.lock=Lock()
+    # 扣除当前执棋方的用时。
     def clock(self):
         if self.w: return
         now=time.monotonic()
@@ -54,6 +60,7 @@ class Match:
         self.start=now
         if not self.left[side]:
             self.w,self.reason=3-side,'超时'
+    # 先校验着法，再更新棋局。
     def step(self,m):
         self.clock()
         if self.w or m not in self.legal: raise ValueError('当前不能执行这步棋')
@@ -64,6 +71,7 @@ class Match:
         self.w=game.winner(self.s,self.legal)
         if self.w:
             self.reason='吃满 11 枚' if self.s.captured>=11 else '对手无合法着法'
+    # 整理前端需要的对局状态。
     def view(self):
         self.clock()
         return dict(board=self.s.board,side=self.s.side,reserve=self.s.reserve,captured=self.s.captured,
@@ -71,12 +79,15 @@ class Match:
                     legal=[] if self.w else self.legal,ai=self.ai)
 
 class Handler(SimpleHTTPRequestHandler):
+    # 初始化对局状态或静态文件目录。
     def __init__(self,*a,**kw): super().__init__(*a,directory=str(ROOT/'web'),**kw)
+    # 按配置允许指定网页来源。
     def end_headers(self):
         if ORIGIN and self.headers.get('Origin')==ORIGIN:
             self.send_header('Access-Control-Allow-Origin',ORIGIN)
             self.send_header('Vary','Origin')
         super().end_headers()
+    # 发送 JSON 响应。
     def reply(self,data,status=200):
         raw=json.dumps(data,ensure_ascii=False).encode()
         self.send_response(status)
@@ -85,27 +96,33 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_header('Content-Length',str(len(raw)))
         self.end_headers()
         self.wfile.write(raw)
+    # 回应浏览器的跨域预检。
     def do_OPTIONS(self):
         self.send_response(204)
         self.send_header('Access-Control-Allow-Headers','Authorization, Content-Type')
         self.send_header('Access-Control-Allow-Methods','GET, POST, OPTIONS')
         self.end_headers()
+    # 分派静态页面或查询请求。
     def do_GET(self):
         if self.path.startswith('/api/'): self.api()
         else: super().do_GET()
+    # 分派写入请求。
     def do_POST(self):
         if self.path.startswith('/api/'): self.api()
         else: self.reply({'error':'地址不存在'},404)
+    # 分派接口并转换常见错误。
     def api(self):
         try: self.dispatch(urlsplit(self.path).path)
         except (ValueError,TypeError,AttributeError,KeyError,OverflowError) as e:
             self.reply({'error':str(e) or '请求格式错误'},400)
         except sqlite3.IntegrityError:
             self.reply({'error':'昵称已被使用'},409)
+    # 计算并执行电脑的一步棋。
     def computer(self,m):
         move=game.choose(m.s)
         m.clock()
         if not m.w: m.step(move)
+    # 校验请求并按路径执行业务。
     def dispatch(self,path):
         if self.command=='GET' and path=='/api/board':
             return self.reply(dict(points=game.POINTS,edges=game.EDGES,initial=game.initial().board))
