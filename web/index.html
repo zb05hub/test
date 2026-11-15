@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>国王与大臣</title><link rel="stylesheet" href="style.css"><script type="module" src="app.js"></script>
+</head>
+<body>
+<div id="viewport"><div id="stage">
+<header><button class="brand" id="home"><span class="mark">王</span> 国王与大臣</button><div class="account"><span id="who"></span><button id="admin" hidden>用户管理</button><button id="auth">登录 / 注册</button></div></header>
+<main>
+<section id="landing">
+<div class="setup">
+<h1>选择对局</h1>
+<div class="mode-row"><div><h2>双人对局</h2><p>同一设备，轮流下棋。</p></div><button data-ai="0" class="primary">开始对局</button></div>
+<div class="mode-row"><div><h2>人机对局</h2><p>选择你要执棋的一方。</p></div><div class="actions"><button data-ai="2">执国王</button><button data-ai="1">执大臣</button></div></div>
+<button id="rules" class="plain">查看规则 ↗</button>
+</div>
+<figure class="preview"><svg id="previewBoard" viewBox="0 0 300 475" aria-label="棋盘初始布局"></svg><figcaption>初始棋位</figcaption></figure>
+</section>
+<section id="match" hidden>
+<div class="match-head"><button id="back">← 返回</button><span id="mode"></span></div>
+<div class="arena">
+<div class="players">
+<div class="player" id="player1"><div><i class="piece king"></i><h3>国王</h3></div><b id="kingClock"></b><p>已吃大臣 <strong id="captured"></strong> / 11</p></div>
+<div class="player" id="player2"><div><i class="piece minister"></i><h3>大臣</h3></div><b id="ministerClock"></b><p>可添棋子 <strong id="reserve"></strong> / 16</p></div>
+</div>
+<div class="tabletop"><svg id="board" viewBox="0 0 300 475" aria-label="双王棋棋盘"></svg></div>
+<aside>
+<div class="status"><span id="round"></span><h2 id="turn"></h2><p id="hint"></p></div>
+<div class="record"><h3>行棋记录</h3><ol id="history" reversed></ol>
+<div class="pager"><button id="historyPrev">较新</button><span id="historyPage"></span><button id="historyNext">较早</button></div></div>
+</aside>
+</div>
+</section>
+<p id="notice" role="status"></p>
+</main>
+</div></div>
+<dialog id="rulesDialog"><div class="dialog-head"><h2>对局规则</h2><button data-close aria-label="关闭">×</button></div><p>国王先行。普通移动只能沿棋盘连线走到相邻空点；国王还可沿横线或竖线跳过相邻的一枚大臣，落到其后的相邻空点。每次最多吃一枚，可以选择不吃。</p><p>大臣起初每回合在任一空交点添加一枚，16 枚备用棋子用完后才开始移动。</p><p>国王吃满 11 枚或大臣无合法着法时获胜；两位国王均无合法着法时大臣获胜。双方各有 40 分钟，超时判负。</p></dialog>
+<dialog id="accountDialog"><form id="accountForm"><div class="dialog-head"><h2 id="formTitle">登录</h2><button type="button" data-close aria-label="关闭">×</button></div><label>昵称<input name="nickname" autocomplete="username" required maxlength="24"></label><label>密码<input name="password" type="password" required minlength="8" maxlength="128"></label><p class="error" id="formError" role="alert"></p><button class="primary" id="submitAuth">登录</button><button type="button" id="switchAuth">创建账号</button></form></dialog>
+<dialog id="adminDialog"><div class="dialog-head"><h2>用户管理</h2><button data-close aria-label="关闭">×</button></div><ul id="users"></ul></dialog>
+</body></html>

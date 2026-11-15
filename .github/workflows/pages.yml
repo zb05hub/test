@@ -1,0 +1,41 @@
+name: Publish frontend
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.publish.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - name: Configure HTTPS backend
+        env:
+          API: ${{ vars.GAME_API_URL }}
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import html, os
+          from urllib.parse import urlsplit
+          url = os.environ['API'].strip().rstrip('/')
+          p = urlsplit(url)
+          if p.scheme != 'https' or not p.hostname or p.username or p.path or p.query or p.fragment:
+              raise SystemExit('Set GAME_API_URL to the HTTPS origin of the Python server.')
+          file = Path('web/index.html')
+          file.write_text(file.read_text().replace('<head>', '<head><meta name="game-api" content="' + html.escape(url, quote=True) + '">'))
+          PY
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+      - uses: actions/deploy-pages@v4
+        id: publish
